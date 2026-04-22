@@ -9,32 +9,26 @@ import 'package:path/path.dart' as p;
 enum MediaFieldType { image, file, youtubeUrl, url }
 
 /// Represents the value of a [MediaFormField].
-class SmartUploadValue {
-  final SmartUploadType type;
+class MediaValue {
+  final MediaFieldType type;
   final String value;
   final String? name;
   final File? file;
 
-  SmartUploadValue({
-    required this.type,
-    required this.value,
-    this.name,
-    this.file,
-  });
+  MediaValue({required this.type, required this.value, this.name, this.file});
 
   @override
-  String toString() =>
-      'SmartUploadValue(type: $type, value: $value, name: $name)';
+  String toString() => 'MediaValue(type: $type, value: $value, name: $name)';
 }
 
 /// A premium, all-in-one form field for picking images, files, or URLs.
-class MediaFormField extends FormField<List<SmartUploadValue>> {
+class MediaFormField extends FormField<List<MediaValue>> {
   final String? label;
   final String? hint;
   final bool multiple;
   final int? minItems;
   final int? maxItems;
-  final ValueChanged<List<SmartUploadValue>>? onChanged;
+  final ValueChanged<List<MediaValue>>? onChanged;
   final Color? primaryColor;
 
   MediaFormField({
@@ -46,9 +40,9 @@ class MediaFormField extends FormField<List<SmartUploadValue>> {
     this.maxItems,
     this.onChanged,
     this.primaryColor,
-    List<SmartUploadValue>? initialValue,
+    List<MediaValue>? initialValue,
     super.onSaved,
-    FormFieldValidator<List<SmartUploadValue>>? validator,
+    FormFieldValidator<List<MediaValue>>? validator,
     super.enabled = true,
     super.autovalidateMode = AutovalidateMode.onUserInteraction,
   }) : super(
@@ -69,7 +63,7 @@ class MediaFormField extends FormField<List<SmartUploadValue>> {
            }
            return null;
          },
-         builder: (FormFieldState<List<SmartUploadValue>> state) {
+         builder: (FormFieldState<List<MediaValue>> state) {
            final context = state.context;
            final theme = Theme.of(context);
            final effectivePrimaryColor = primaryColor ?? theme.primaryColor;
@@ -123,7 +117,7 @@ class MediaFormField extends FormField<List<SmartUploadValue>> {
 }
 
 class _MediaFormFieldInternal extends StatefulWidget {
-  final List<SmartUploadValue> values;
+  final List<MediaValue> values;
   final String? hint;
   final bool multiple;
   final int? minItems;
@@ -131,7 +125,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final Color primaryColor;
   final bool hasError;
   final bool enabled;
-  final ValueChanged<List<SmartUploadValue>> onChanged;
+  final ValueChanged<List<MediaValue>> onChanged;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -184,7 +178,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
 
     _animationController.forward().then((_) => _animationController.reverse());
 
-    final results = await showModalBottomSheet<List<SmartUploadValue>>(
+    final results = await showModalBottomSheet<List<MediaValue>>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -245,21 +239,21 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       child: Container(
         decoration: BoxDecoration(
           color: isDark
-              ? Colors.white.withOpacity(0.05)
-              : Colors.black.withOpacity(0.02),
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: widget.hasError
                 ? theme.colorScheme.error
                 : (isDark
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.black.withOpacity(0.1)),
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.1)),
             width: 1.5,
           ),
           boxShadow: [
             if (!widget.hasError)
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -298,18 +292,18 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
   }
 
-  Widget _buildItemCard(SmartUploadValue val, int index, bool isDark) {
+  Widget _buildItemCard(MediaValue val, int index, bool isDark) {
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
         color: isDark
-            ? Colors.white.withOpacity(0.05)
-            : Colors.black.withOpacity(0.02),
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.02),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : Colors.black.withOpacity(0.1),
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.1),
         ),
       ),
       child: ListTile(
@@ -352,7 +346,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: widget.primaryColor.withOpacity(0.3),
+            color: widget.primaryColor.withValues(alpha: 0.3),
             style: BorderStyle.solid,
           ),
         ),
@@ -379,7 +373,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       children: [
         Icon(
           Icons.cloud_upload_outlined,
-          color: Theme.of(context).hintColor.withOpacity(0.5),
+          color: Theme.of(context).hintColor.withValues(alpha: 0.5),
           size: 24,
         ),
         const SizedBox(width: 12),
@@ -396,7 +390,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
   }
 
-  Widget _buildSingleValuePreview(SmartUploadValue val) {
+  Widget _buildSingleValuePreview(MediaValue val) {
     final theme = Theme.of(context);
     return Row(
       children: [
@@ -428,30 +422,30 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
   }
 
-  Widget _buildLeadingIcon(SmartUploadValue val) {
+  Widget _buildLeadingIcon(MediaValue val) {
     dynamic icon;
     Color iconColor;
 
     switch (val.type) {
-      case SmartUploadType.image:
+      case MediaFieldType.image:
         icon = Icons.image_rounded;
         iconColor = Colors.blue;
         break;
-      case SmartUploadType.file:
+      case MediaFieldType.file:
         icon = Icons.insert_drive_file_rounded;
         iconColor = Colors.orange;
         break;
-      case SmartUploadType.youtubeUrl:
+      case MediaFieldType.youtubeUrl:
         icon = FontAwesomeIcons.youtube;
         iconColor = Colors.red;
         break;
-      case SmartUploadType.url:
+      case MediaFieldType.url:
         icon = Icons.link_rounded;
         iconColor = Colors.teal;
         break;
     }
 
-    if (val.type == SmartUploadType.image && val.file != null) {
+    if (val.type == MediaFieldType.image && val.file != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.file(
@@ -472,7 +466,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(
@@ -483,15 +477,15 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
   }
 
-  String _getTypeLabel(SmartUploadType type) {
+  String _getTypeLabel(MediaFieldType type) {
     switch (type) {
-      case SmartUploadType.image:
+      case MediaFieldType.image:
         return 'IMAGE';
-      case SmartUploadType.file:
+      case MediaFieldType.file:
         return 'FILE';
-      case SmartUploadType.youtubeUrl:
+      case MediaFieldType.youtubeUrl:
         return 'YOUTUBE';
-      case SmartUploadType.url:
+      case MediaFieldType.url:
         return 'URL';
     }
   }
@@ -513,7 +507,7 @@ class _PickerSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -617,8 +611,8 @@ class _PickerSheet extends StatelessWidget {
             context,
             images
                 .map(
-                  (image) => SmartUploadValue(
-                    type: SmartUploadType.image,
+                  (image) => MediaValue(
+                    type: MediaFieldType.image,
                     value: image.path,
                     name: p.basename(image.path),
                     file: File(image.path),
@@ -632,8 +626,8 @@ class _PickerSheet extends StatelessWidget {
         if (!context.mounted) return;
         if (image != null) {
           Navigator.pop(context, [
-            SmartUploadValue(
-              type: SmartUploadType.image,
+            MediaValue(
+              type: MediaFieldType.image,
               value: image.path,
               name: p.basename(image.path),
               file: File(image.path),
@@ -653,8 +647,8 @@ class _PickerSheet extends StatelessWidget {
         result.files
             .where((f) => f.path != null)
             .map(
-              (file) => SmartUploadValue(
-                type: SmartUploadType.file,
+              (file) => MediaValue(
+                type: MediaFieldType.file,
                 value: file.path!,
                 name: file.name,
                 file: File(file.path!),
@@ -692,8 +686,9 @@ class _PickerSheet extends StatelessWidget {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Please enter a URL';
-              if (!Uri.parse(value).isAbsolute)
+              if (!Uri.parse(value).isAbsolute) {
                 return 'Please enter a valid URL';
+              }
               if (isYoutube &&
                   !value.contains('youtube.com') &&
                   !value.contains('youtu.be')) {
@@ -723,8 +718,8 @@ class _PickerSheet extends StatelessWidget {
     if (!context.mounted) return;
     if (url != null) {
       Navigator.pop(context, [
-        SmartUploadValue(
-          type: isYoutube ? SmartUploadType.youtubeUrl : SmartUploadType.url,
+        MediaValue(
+          type: isYoutube ? MediaFieldType.youtubeUrl : MediaFieldType.url,
           value: url,
           name: url,
         ),
@@ -756,9 +751,9 @@ class _PickerOption extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.1 : 0.05),
+          color: color.withValues(alpha: isDark ? 0.1 : 0.05),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

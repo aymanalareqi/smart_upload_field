@@ -1,39 +1,37 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# Media Form Field
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+A premium, all-in-one Flutter form field for picking images, files, or capturing URLs (including YouTube support). 
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+This package provides a unified UI for various media types, making it easy to integrate file selection and URL inputs into your Flutter forms.
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+- **Unified Interface**: Pick images, files, or enter URLs from a single component.
+- **Multiple Selection**: Support for selecting multiple items with `minItems` and `maxItems` constraints.
+- **Premium UI**: Modern design with glassmorphism effects, smooth animations, and tailored color palettes.
+- **Form Integration**: Built as a `FormField`, it integrates seamlessly with Flutter's `Form` widget and validation logic.
+- **Platform Support**: Optimized for mobile (iOS/Android) using `image_picker` and `file_picker`.
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
 ```dart
-const like = 'sample';
+MediaFormField(
+  label: 'Upload Media',
+  hint: 'Pick an image, file or enter a URL',
+  multiple: true,
+  maxItems: 5,
+  onChanged: (values) {
+    print('Selected ${values.length} items');
+  },
+  validator: (values) {
+    if (values == null || values.isEmpty) {
+      return 'Please select at least one item';
+    }
+    return null;
+  },
+)
 ```
 
 ## Additional information
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+This package is a rename of the original `SmartUploadField` to better reflect its purpose as a comprehensive media form component.

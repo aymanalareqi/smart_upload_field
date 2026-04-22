@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Upload Field Demo',
+      title: 'Media Form Field Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -41,13 +41,13 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _formKey = GlobalKey<FormState>();
-  List<SmartUploadValue> _uploadValues = [];
+  List<MediaValue> _mediaValues = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Upload Field'),
+        title: const Text('Media Form Field'),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
@@ -74,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 multiple: false,
                 onChanged: (values) {
                   setState(() {
-                    _uploadValues = values;
+                    _mediaValues = values;
                   });
                 },
                 validator: (values) {
@@ -95,7 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
               ),
               const SizedBox(height: 40),
-              if (_uploadValues.isNotEmpty) ...[
+              if (_mediaValues.isNotEmpty) ...[
                 const Text(
                   'Last Selection:',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -111,7 +111,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _uploadValues
+                    children: _mediaValues
                         .map((v) => Text(v.toString()))
                         .toList(),
                   ),
