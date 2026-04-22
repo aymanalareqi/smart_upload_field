@@ -544,14 +544,21 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                 ),
               ),
             if (val.remoteId != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  'ID: ${val.remoteId}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Colors.green, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Uploaded',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -687,12 +694,19 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                   ),
                 ),
               if (val.remoteId != null)
-                Text(
-                  'Uploaded',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Colors.green, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Uploaded',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
