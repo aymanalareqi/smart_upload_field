@@ -84,9 +84,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               const SizedBox(height: 40),
               MediaFormField(
-                label: 'Single Upload',
-                hint: 'Pick an image, file or enter a URL',
+                label: 'Image or File Only',
+                hint: 'Pick an image or file',
                 multiple: false,
+                allowedTypes: const [MediaFieldType.image, MediaFieldType.file],
                 onChanged: (values) {
                   setState(() {
                     _mediaValues = values;

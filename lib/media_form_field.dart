@@ -140,6 +140,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
   final void Function(bool isUploading)? onUploadingStateChanged;
   final MediaFormFieldTranslations translations;
   final MediaFieldViewType viewType;
+  final List<MediaFieldType> allowedTypes;
 
   MediaFormField({
     super.key,
@@ -158,6 +159,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
     this.onUploadingStateChanged,
     this.translations = const MediaFormFieldTranslations(),
     this.viewType = MediaFieldViewType.list,
+    this.allowedTypes = MediaFieldType.values,
     List<MediaValue>? initialValue,
     super.onSaved,
     FormFieldValidator<List<MediaValue>>? validator,
@@ -219,6 +221,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
                  onUploadingStateChanged: onUploadingStateChanged,
                  translations: translations,
                  viewType: viewType,
+                 allowedTypes: allowedTypes,
                  onChanged: (val) {
                    state.didChange(val);
                    onChanged?.call(val);
@@ -260,6 +263,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final void Function(bool isUploading)? onUploadingStateChanged;
   final MediaFormFieldTranslations translations;
   final MediaFieldViewType viewType;
+  final List<MediaFieldType> allowedTypes;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -279,6 +283,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
     this.onUploadingStateChanged,
     required this.translations,
     required this.viewType,
+    required this.allowedTypes,
   });
 
   @override
@@ -450,6 +455,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
         primaryColor: widget.primaryColor,
         multiple: widget.multiple,
         translations: widget.translations,
+        allowedTypes: widget.allowedTypes,
       ),
     );
 
@@ -869,7 +875,10 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                 if (val.isUploading)
                   Column(
                     children: [
-                      LinearProgressIndicator(value: val.progress, minHeight: 3),
+                      LinearProgressIndicator(
+                        value: val.progress,
+                        minHeight: 3,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${(val.progress * 100).toStringAsFixed(0)}%',
@@ -895,7 +904,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 12),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.green,
+                        size: 12,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         widget.translations.uploaded,
@@ -1011,11 +1024,13 @@ class _PickerSheet extends StatelessWidget {
   final Color primaryColor;
   final bool multiple;
   final MediaFormFieldTranslations translations;
+  final List<MediaFieldType> allowedTypes;
 
   const _PickerSheet({
     required this.primaryColor,
     required this.multiple,
     required this.translations,
+    required this.allowedTypes,
   });
 
   @override
@@ -1073,30 +1088,34 @@ class _PickerSheet extends StatelessWidget {
       crossAxisSpacing: 16,
       childAspectRatio: 1.5,
       children: [
-        _PickerOption(
-          icon: Icons.image_rounded,
-          label: translations.image,
-          color: Colors.blue,
-          onTap: () => _pickImage(context),
-        ),
-        _PickerOption(
-          icon: Icons.insert_drive_file_rounded,
-          label: translations.file,
-          color: Colors.orange,
-          onTap: () => _pickFile(context),
-        ),
-        _PickerOption(
-          icon: FontAwesomeIcons.youtube,
-          label: translations.youtube,
-          color: Colors.red,
-          onTap: () => _pickUrl(context, isYoutube: true),
-        ),
-        _PickerOption(
-          icon: Icons.link_rounded,
-          label: translations.url,
-          color: Colors.teal,
-          onTap: () => _pickUrl(context, isYoutube: false),
-        ),
+        if (allowedTypes.contains(MediaFieldType.image))
+          _PickerOption(
+            icon: Icons.image_rounded,
+            label: translations.image,
+            color: Colors.blue,
+            onTap: () => _pickImage(context),
+          ),
+        if (allowedTypes.contains(MediaFieldType.file))
+          _PickerOption(
+            icon: Icons.insert_drive_file_rounded,
+            label: translations.file,
+            color: Colors.orange,
+            onTap: () => _pickFile(context),
+          ),
+        if (allowedTypes.contains(MediaFieldType.youtubeUrl))
+          _PickerOption(
+            icon: FontAwesomeIcons.youtube,
+            label: translations.youtube,
+            color: Colors.red,
+            onTap: () => _pickUrl(context, isYoutube: true),
+          ),
+        if (allowedTypes.contains(MediaFieldType.url))
+          _PickerOption(
+            icon: Icons.link_rounded,
+            label: translations.url,
+            color: Colors.teal,
+            onTap: () => _pickUrl(context, isYoutube: false),
+          ),
       ],
     );
   }
@@ -1208,8 +1227,9 @@ class _PickerSheet extends StatelessWidget {
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty)
+              if (value == null || value.isEmpty) {
                 return translations.pleaseEnterUrl;
+              }
               if (!Uri.parse(value).isAbsolute) {
                 return translations.pleaseEnterValidUrl;
               }

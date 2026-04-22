@@ -47,15 +47,18 @@ No specific setup is strictly required for modern Android versions, but ensure y
 
 ## Usage
 
-### 1. Basic Single Upload
+### 1. Basic Single Upload (Restricted Types)
+
+You can restrict the picker to only allow certain media types (e.g., only images and files, no URLs):
 
 ```dart
 import 'package:smart_media_form_field/media_form_field.dart';
 
 MediaFormField(
-  label: 'Single Upload',
-  hint: 'Pick an image, file or enter a URL',
+  label: 'Image or File Only',
+  hint: 'Pick an image or a file',
   multiple: false,
+  allowedTypes: const [MediaFieldType.image, MediaFieldType.file],
   onChanged: (values) {
     print('Selected media: ${values.first.value}');
   },
@@ -176,6 +179,7 @@ for (var media in values) {
 | `multiple` | `bool` | Whether the user can select multiple files/links. |
 | `maxItems` | `int?` | Maximum allowed items (only applicable if `multiple: true`). |
 | `viewType` | `MediaFieldViewType` | Display picked items in a `list` or a `grid`. |
+| `allowedTypes` | `List<MediaFieldType>` | Restrict the options shown in the picker (e.g., only images/files). |
 | `autoUpload` | `bool` | Automatically uploads files to the server after picking. |
 | `uploadUrl` | `String?` | The API endpoint for file uploads. Required if `autoUpload` is true. |
 | `uploadHeaders` | `Map<String, String>?` | HTTP headers sent with the upload request. |
