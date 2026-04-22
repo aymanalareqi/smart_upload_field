@@ -72,6 +72,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
   final Map<String, String>? headers;
   final void Function(MediaValue)? onUploadSuccess;
   final void Function(String)? onUploadError;
+  final void Function(bool isUploading)? onUploadingStateChanged;
 
   MediaFormField({
     super.key,
@@ -87,6 +88,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
     this.headers,
     this.onUploadSuccess,
     this.onUploadError,
+    this.onUploadingStateChanged,
     List<MediaValue>? initialValue,
     super.onSaved,
     FormFieldValidator<List<MediaValue>>? validator,
@@ -145,6 +147,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
                  headers: headers,
                  onUploadSuccess: onUploadSuccess,
                  onUploadError: onUploadError,
+                 onUploadingStateChanged: onUploadingStateChanged,
                  onChanged: (val) {
                    state.didChange(val);
                    onChanged?.call(val);
@@ -183,6 +186,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final Map<String, String>? headers;
   final void Function(MediaValue)? onUploadSuccess;
   final void Function(String)? onUploadError;
+  final void Function(bool isUploading)? onUploadingStateChanged;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -199,6 +203,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
     this.headers,
     this.onUploadSuccess,
     this.onUploadError,
+    this.onUploadingStateChanged,
   });
 
   @override
@@ -327,6 +332,8 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
   }
 
   void _updateValue(MediaValue oldVal, MediaValue newVal) {
+    final wasUploading = _values.any((v) => v.isUploading);
+
     // 1. Update local state immediately for smooth progress redraws.
     setState(() {
       final localIdx = _values.indexWhere(
@@ -334,6 +341,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       );
       if (localIdx != -1) _values[localIdx] = newVal;
     });
+
+    final isUploadingNow = _values.any((v) => v.isUploading);
+    if (wasUploading != isUploadingNow) {
+      widget.onUploadingStateChanged?.call(isUploadingNow);
+    }
 
     // 2. Propagate to the parent FormField so the form value is also updated.
     final newValues = [..._values];
@@ -548,7 +560,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                 padding: EdgeInsets.only(top: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: Colors.green, size: 14),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.green,
+                      size: 14,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Uploaded',
@@ -696,7 +712,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
               if (val.remoteId != null)
                 const Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: Colors.green, size: 14),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.green,
+                      size: 14,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Uploaded',

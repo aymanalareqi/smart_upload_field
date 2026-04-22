@@ -56,6 +56,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _formKey = GlobalKey<FormState>();
   List<MediaValue> _mediaValues = [];
+  bool _isUploading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +122,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     'File uploaded successfully! Remote UUID: ${value.remoteId}',
                   );
                 },
+                onUploadingStateChanged: (isUploading) {
+                  setState(() {
+                    _isUploading = isUploading;
+                  });
+                },
                 onUploadError: (error) {
                   print('Upload failed: $error');
                 },
@@ -150,20 +156,22 @@ class _MyHomePageState extends State<MyHomePage> {
                 const SizedBox(height: 24),
               ],
               ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Form Validated!')),
-                    );
-                  }
-                },
+                onPressed: _isUploading
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Form Validated!')),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Submit Form'),
+                child: Text(_isUploading ? 'Uploading...' : 'Submit Form'),
               ),
             ],
           ),
