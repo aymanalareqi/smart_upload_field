@@ -1,7 +1,21 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:smart_upload_field/media_form_field.dart';
 
+/// Bypass SSL certificate verification for development.
+/// [WARNING] Do not use this in production apps.
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() {
+  // Use overrides to allow self-signed or incomplete certificate chains during testing.
+  HttpOverrides.global = MyHttpOverrides();
   runApp(const MyApp());
 }
 

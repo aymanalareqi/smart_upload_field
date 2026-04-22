@@ -4,8 +4,7 @@ import 'package:file_picker/file_picker.dart' as fp;
 import 'package:image_picker/image_picker.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path/path.dart' as p;
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:dio/dio.dart' as dio;
 
 /// Defines the type of content picked by the [MediaFormField].
 enum MediaFieldType { image, file, youtubeUrl, url }
@@ -18,6 +17,7 @@ class MediaValue {
   final File? file;
   final String? remoteId;
   final bool isUploading;
+  final double progress;
   final String? error;
 
   MediaValue({
@@ -27,6 +27,7 @@ class MediaValue {
     this.file,
     this.remoteId,
     this.isUploading = false,
+    this.progress = 0.0,
     this.error,
   });
 
@@ -37,6 +38,7 @@ class MediaValue {
     File? file,
     String? remoteId,
     bool? isUploading,
+    double? progress,
     String? error,
   }) {
     return MediaValue(
@@ -46,6 +48,7 @@ class MediaValue {
       file: file ?? this.file,
       remoteId: remoteId ?? this.remoteId,
       isUploading: isUploading ?? this.isUploading,
+      progress: progress ?? this.progress,
       error: error ?? this.error,
     );
   }
@@ -229,45 +232,67 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
   Future<void> _uploadFile(MediaValue value) async {
     if (widget.uploadUrl == null || value.file == null) return;
 
-    // Update state to uploading
-    _updateValue(value, value.copyWith(isUploading: true, error: null));
+    // Mark as uploading with 0 progress
+    _updateValue(value, value.copyWith(isUploading: true, progress: 0.0, error: null));
 
     try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(widget.uploadUrl!),
-      );
+      final dioClient = dio.Dio();
+
+      final headers = <String, dynamic>{'Accept': 'application/json'};
       if (widget.headers != null) {
-        request.headers.addAll(widget.headers!);
+        headers.addAll(widget.headers!);
       }
 
-      request.files.add(
-        await http.MultipartFile.fromPath('file', value.file!.path),
+      final formData = dio.FormData.fromMap({
+        'file': await dio.MultipartFile.fromFile(
+          value.file!.path,
+          filename: value.name ?? p.basename(value.file!.path),
+        ),
+      });
+
+      final response = await dioClient.post(
+        widget.uploadUrl!,
+        data: formData,
+        options: dio.Options(headers: headers),
+        onSendProgress: (sent, total) {
+          if (total > 0) {
+            final progress = sent / total;
+            // Read the current value from widget.values so we always mutate the latest copy
+            final current = widget.values.firstWhere(
+              (v) => v.value == value.value && v.file?.path == value.file?.path,
+              orElse: () => value,
+            );
+            _updateValue(current, current.copyWith(progress: progress));
+          }
+        },
       );
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        final remoteId = data['uuid'];
-
-        final updatedValue = value.copyWith(
-          isUploading: false,
-          remoteId: remoteId,
-        );
-        _updateValue(value, updatedValue);
-        widget.onUploadSuccess?.call(updatedValue);
-      } else {
-        throw Exception(
-          'Upload failed (${response.statusCode}): ${response.body}',
-        );
-      }
+      final remoteId = response.data['uuid'];
+      final current = widget.values.firstWhere(
+        (v) => v.value == value.value && v.file?.path == value.file?.path,
+        orElse: () => value,
+      );
+      final updatedValue = current.copyWith(
+        isUploading: false,
+        progress: 1.0,
+        remoteId: remoteId,
+      );
+      _updateValue(current, updatedValue);
+      widget.onUploadSuccess?.call(updatedValue);
+    } on dio.DioException catch (e) {
+      final msg = e.response?.data?.toString() ?? e.message ?? e.toString();
+      final current = widget.values.firstWhere(
+        (v) => v.value == value.value && v.file?.path == value.file?.path,
+        orElse: () => value,
+      );
+      _updateValue(current, current.copyWith(isUploading: false, progress: 0.0, error: msg));
+      widget.onUploadError?.call(msg);
     } catch (e) {
-      _updateValue(
-        value,
-        value.copyWith(isUploading: false, error: e.toString()),
+      final current = widget.values.firstWhere(
+        (v) => v.value == value.value && v.file?.path == value.file?.path,
+        orElse: () => value,
       );
+      _updateValue(current, current.copyWith(isUploading: false, progress: 0.0, error: e.toString()));
       widget.onUploadError?.call(e.toString());
     }
   }
@@ -456,9 +481,24 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
               ),
             ),
             if (val.isUploading)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: LinearProgressIndicator(minHeight: 2),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: val.progress,
+                      minHeight: 3,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${(val.progress * 100).toStringAsFixed(0)}%',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: widget.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             if (val.error != null)
               Padding(
@@ -590,9 +630,24 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                 ),
               ),
               if (val.isUploading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 4),
-                  child: LinearProgressIndicator(minHeight: 2),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LinearProgressIndicator(
+                        value: val.progress,
+                        minHeight: 3,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${(val.progress * 100).toStringAsFixed(0)}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: widget.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               if (val.remoteId != null)
                 Text(
