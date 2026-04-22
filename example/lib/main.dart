@@ -94,6 +94,23 @@ class _MyHomePageState extends State<MyHomePage> {
                   print('Selected: ${values.length} items');
                 },
               ),
+              const SizedBox(height: 24),
+              MediaFormField(
+                label: 'Laravel Integration (Auto-Upload)',
+                hint: 'Files will be uploaded immediately to Laravel backend',
+                multiple: true,
+                autoUpload: true,
+                // Replace with your actual Laravel API endpoint
+                uploadUrl: 'https://app.rawdaljinan.com/api/upload-file',
+                onUploadSuccess: (value) {
+                  print(
+                    'File uploaded successfully! Remote UUID: ${value.remoteId}',
+                  );
+                },
+                onUploadError: (error) {
+                  print('Upload failed: $error');
+                },
+              ),
               const SizedBox(height: 40),
               if (_mediaValues.isNotEmpty) ...[
                 const Text(

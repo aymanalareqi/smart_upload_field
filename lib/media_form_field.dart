@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart' as fp;
 import 'package:image_picker/image_picker.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 /// Defines the type of content picked by the [MediaFormField].
 enum MediaFieldType { image, file, youtubeUrl, url }
@@ -14,11 +16,43 @@ class MediaValue {
   final String value;
   final String? name;
   final File? file;
+  final String? remoteId;
+  final bool isUploading;
+  final String? error;
 
-  MediaValue({required this.type, required this.value, this.name, this.file});
+  MediaValue({
+    required this.type,
+    required this.value,
+    this.name,
+    this.file,
+    this.remoteId,
+    this.isUploading = false,
+    this.error,
+  });
+
+  MediaValue copyWith({
+    MediaFieldType? type,
+    String? value,
+    String? name,
+    File? file,
+    String? remoteId,
+    bool? isUploading,
+    String? error,
+  }) {
+    return MediaValue(
+      type: type ?? this.type,
+      value: value ?? this.value,
+      name: name ?? this.name,
+      file: file ?? this.file,
+      remoteId: remoteId ?? this.remoteId,
+      isUploading: isUploading ?? this.isUploading,
+      error: error ?? this.error,
+    );
+  }
 
   @override
-  String toString() => 'MediaValue(type: $type, value: $value, name: $name)';
+  String toString() =>
+      'MediaValue(type: $type, value: $value, name: $name, remoteId: $remoteId, isUploading: $isUploading)';
 }
 
 /// A premium, all-in-one form field for picking images, files, or URLs.
@@ -30,6 +64,11 @@ class MediaFormField extends FormField<List<MediaValue>> {
   final int? maxItems;
   final ValueChanged<List<MediaValue>>? onChanged;
   final Color? primaryColor;
+  final bool autoUpload;
+  final String? uploadUrl;
+  final Map<String, String>? headers;
+  final void Function(MediaValue)? onUploadSuccess;
+  final void Function(String)? onUploadError;
 
   MediaFormField({
     super.key,
@@ -40,6 +79,11 @@ class MediaFormField extends FormField<List<MediaValue>> {
     this.maxItems,
     this.onChanged,
     this.primaryColor,
+    this.autoUpload = false,
+    this.uploadUrl,
+    this.headers,
+    this.onUploadSuccess,
+    this.onUploadError,
     List<MediaValue>? initialValue,
     super.onSaved,
     FormFieldValidator<List<MediaValue>>? validator,
@@ -93,6 +137,11 @@ class MediaFormField extends FormField<List<MediaValue>> {
                  primaryColor: effectivePrimaryColor,
                  hasError: hasError,
                  enabled: enabled,
+                 autoUpload: autoUpload,
+                 uploadUrl: uploadUrl,
+                 headers: headers,
+                 onUploadSuccess: onUploadSuccess,
+                 onUploadError: onUploadError,
                  onChanged: (val) {
                    state.didChange(val);
                    onChanged?.call(val);
@@ -126,6 +175,11 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final bool hasError;
   final bool enabled;
   final ValueChanged<List<MediaValue>> onChanged;
+  final bool autoUpload;
+  final String? uploadUrl;
+  final Map<String, String>? headers;
+  final void Function(MediaValue)? onUploadSuccess;
+  final void Function(String)? onUploadError;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -137,6 +191,11 @@ class _MediaFormFieldInternal extends StatefulWidget {
     required this.hasError,
     required this.enabled,
     required this.onChanged,
+    this.autoUpload = false,
+    this.uploadUrl,
+    this.headers,
+    this.onUploadSuccess,
+    this.onUploadError,
   });
 
   @override
@@ -167,6 +226,63 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     super.dispose();
   }
 
+  Future<void> _uploadFile(MediaValue value) async {
+    if (widget.uploadUrl == null || value.file == null) return;
+
+    // Update state to uploading
+    _updateValue(value, value.copyWith(isUploading: true, error: null));
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(widget.uploadUrl!),
+      );
+      if (widget.headers != null) {
+        request.headers.addAll(widget.headers!);
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', value.file!.path),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        final remoteId = data['uuid'];
+
+        final updatedValue = value.copyWith(
+          isUploading: false,
+          remoteId: remoteId,
+        );
+        _updateValue(value, updatedValue);
+        widget.onUploadSuccess?.call(updatedValue);
+      } else {
+        throw Exception(
+          'Upload failed (${response.statusCode}): ${response.body}',
+        );
+      }
+    } catch (e) {
+      _updateValue(
+        value,
+        value.copyWith(isUploading: false, error: e.toString()),
+      );
+      widget.onUploadError?.call(e.toString());
+    }
+  }
+
+  void _updateValue(MediaValue oldVal, MediaValue newVal) {
+    final newValues = [...widget.values];
+    final idx = newValues.indexWhere(
+      (v) => v.value == oldVal.value && v.file?.path == oldVal.file?.path,
+    );
+    if (idx != -1) {
+      newValues[idx] = newVal;
+      widget.onChanged(newValues);
+    }
+  }
+
   void _handleTap() async {
     if (!widget.enabled) return;
     if (widget.maxItems != null && widget.values.length >= widget.maxItems!) {
@@ -189,15 +305,28 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
 
     if (results != null && results.isNotEmpty) {
+      List<MediaValue> finalResults = results;
       if (widget.multiple) {
         final newValues = [...widget.values, ...results];
         if (widget.maxItems != null && newValues.length > widget.maxItems!) {
-          widget.onChanged(newValues.take(widget.maxItems!).toList());
+          finalResults = results
+              .take(widget.maxItems! - widget.values.length)
+              .toList();
+          widget.onChanged([...widget.values, ...finalResults]);
         } else {
           widget.onChanged(newValues);
         }
       } else {
-        widget.onChanged([results.first]);
+        finalResults = [results.first];
+        widget.onChanged(finalResults);
+      }
+
+      if (widget.autoUpload) {
+        for (var val in finalResults) {
+          if (val.file != null) {
+            _uploadFile(val);
+          }
+        }
       }
     }
   }
@@ -317,20 +446,65 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
             fontWeight: FontWeight.w500,
           ),
         ),
-        subtitle: Text(
-          _getTypeLabel(val.type),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: widget.primaryColor,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _getTypeLabel(val.type),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: widget.primaryColor,
+              ),
+            ),
+            if (val.isUploading)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            if (val.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Error: ${val.error}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+            if (val.remoteId != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'ID: ${val.remoteId}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
         ),
         trailing: widget.enabled
-            ? IconButton(
-                icon: const Icon(
-                  Icons.remove_circle_outline_rounded,
-                  color: Colors.redAccent,
-                  size: 20,
-                ),
-                onPressed: () => _removeItem(index),
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (val.error != null)
+                    IconButton(
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        color: widget.primaryColor,
+                        size: 20,
+                      ),
+                      onPressed: () => _uploadFile(val),
+                    ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle_outline_rounded,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
+                    onPressed: () => _removeItem(index),
+                  ),
+                ],
               )
             : null,
       ),
@@ -415,6 +589,19 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (val.isUploading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+              if (val.remoteId != null)
+                Text(
+                  'Uploaded',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
             ],
           ),
         ),
@@ -639,7 +826,7 @@ class _PickerSheet extends StatelessWidget {
   }
 
   void _pickFile(BuildContext context) async {
-    final result = await FilePicker.pickFiles(allowMultiple: multiple);
+    final result = await fp.FilePicker.pickFiles(allowMultiple: multiple);
     if (!context.mounted) return;
     if (result != null && result.files.isNotEmpty) {
       Navigator.pop(
