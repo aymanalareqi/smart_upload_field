@@ -21,7 +21,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  smart_upload_field: ^1.0.0
+  smart_media_form_field: ^1.0.0
 ```
 
 ## Setup
@@ -50,7 +50,7 @@ No specific setup is strictly required for modern Android versions, but ensure y
 ### 1. Basic Single Upload
 
 ```dart
-import 'package:smart_upload_field/media_form_field.dart';
+import 'package:smart_media_form_field/media_form_field.dart';
 
 MediaFormField(
   label: 'Single Upload',

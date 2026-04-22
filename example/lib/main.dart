@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:smart_upload_field/media_form_field.dart';
+import 'package:smart_media_form_field/media_form_field.dart';
 
 /// Bypass SSL certificate verification for development.
 /// [WARNING] Do not use this in production apps.

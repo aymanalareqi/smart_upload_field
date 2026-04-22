@@ -357,7 +357,7 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  smart_upload_field:
+  smart_media_form_field:
     dependency: "direct main"
     description:
       path: ".."
