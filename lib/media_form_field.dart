@@ -211,9 +211,14 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
+  /// Local copy of values — allows setState for fast progress redraws
+  /// without waiting for the full FormField → MediaFormField rebuild chain.
+  late List<MediaValue> _values;
+
   @override
   void initState() {
     super.initState();
+    _values = List.from(widget.values);
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -221,6 +226,17 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didUpdateWidget(_MediaFormFieldInternal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sync local values when the parent pushes new values (e.g. after removal),
+    // but only if we're not mid-upload (otherwise we'd overwrite progress).
+    final anyUploading = _values.any((v) => v.isUploading);
+    if (!anyUploading) {
+      _values = List.from(widget.values);
+    }
   }
 
   @override
@@ -233,7 +249,10 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     if (widget.uploadUrl == null || value.file == null) return;
 
     // Mark as uploading with 0 progress
-    _updateValue(value, value.copyWith(isUploading: true, progress: 0.0, error: null));
+    _updateValue(
+      value,
+      value.copyWith(isUploading: true, progress: 0.0, error: null),
+    );
 
     try {
       final dioClient = dio.Dio();
@@ -258,7 +277,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
           if (total > 0) {
             final progress = sent / total;
             // Read the current value from widget.values so we always mutate the latest copy
-            final current = widget.values.firstWhere(
+            final current = _values.firstWhere(
               (v) => v.value == value.value && v.file?.path == value.file?.path,
               orElse: () => value,
             );
@@ -268,7 +287,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       );
 
       final remoteId = response.data['uuid'];
-      final current = widget.values.firstWhere(
+      final current = _values.firstWhere(
         (v) => v.value == value.value && v.file?.path == value.file?.path,
         orElse: () => value,
       );
@@ -281,36 +300,49 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       widget.onUploadSuccess?.call(updatedValue);
     } on dio.DioException catch (e) {
       final msg = e.response?.data?.toString() ?? e.message ?? e.toString();
-      final current = widget.values.firstWhere(
+      final current = _values.firstWhere(
         (v) => v.value == value.value && v.file?.path == value.file?.path,
         orElse: () => value,
       );
-      _updateValue(current, current.copyWith(isUploading: false, progress: 0.0, error: msg));
+      _updateValue(
+        current,
+        current.copyWith(isUploading: false, progress: 0.0, error: msg),
+      );
       widget.onUploadError?.call(msg);
     } catch (e) {
-      final current = widget.values.firstWhere(
+      final current = _values.firstWhere(
         (v) => v.value == value.value && v.file?.path == value.file?.path,
         orElse: () => value,
       );
-      _updateValue(current, current.copyWith(isUploading: false, progress: 0.0, error: e.toString()));
+      _updateValue(
+        current,
+        current.copyWith(
+          isUploading: false,
+          progress: 0.0,
+          error: e.toString(),
+        ),
+      );
       widget.onUploadError?.call(e.toString());
     }
   }
 
   void _updateValue(MediaValue oldVal, MediaValue newVal) {
-    final newValues = [...widget.values];
-    final idx = newValues.indexWhere(
-      (v) => v.value == oldVal.value && v.file?.path == oldVal.file?.path,
-    );
-    if (idx != -1) {
-      newValues[idx] = newVal;
-      widget.onChanged(newValues);
-    }
+    // 1. Update local state immediately for smooth progress redraws.
+    setState(() {
+      final localIdx = _values.indexWhere(
+        (v) => v.value == oldVal.value && v.file?.path == oldVal.file?.path,
+      );
+      if (localIdx != -1) _values[localIdx] = newVal;
+    });
+
+    // 2. Propagate to the parent FormField so the form value is also updated.
+    final newValues = [..._values];
+    widget.onChanged(newValues);
   }
 
   void _handleTap() async {
     if (!widget.enabled) return;
-    if (widget.maxItems != null && widget.values.length >= widget.maxItems!) {
+    if (widget.maxItems != null && _values.length >= widget.maxItems!) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Maximum of ${widget.maxItems} items allowed')),
       );
@@ -332,19 +364,23 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     if (results != null && results.isNotEmpty) {
       List<MediaValue> finalResults = results;
       if (widget.multiple) {
-        final newValues = [...widget.values, ...results];
+        final newValues = [..._values, ...results];
         if (widget.maxItems != null && newValues.length > widget.maxItems!) {
           finalResults = results
-              .take(widget.maxItems! - widget.values.length)
+              .take(widget.maxItems! - _values.length)
               .toList();
-          widget.onChanged([...widget.values, ...finalResults]);
-        } else {
-          widget.onChanged(newValues);
         }
+        setState(() {
+          _values = [..._values, ...finalResults];
+        });
       } else {
         finalResults = [results.first];
-        widget.onChanged(finalResults);
+        setState(() {
+          _values = finalResults;
+        });
       }
+      // Notify parent
+      widget.onChanged([..._values]);
 
       if (widget.autoUpload) {
         for (var val in finalResults) {
@@ -357,9 +393,10 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
   }
 
   void _removeItem(int index) {
-    final newValues = [...widget.values];
-    newValues.removeAt(index);
-    widget.onChanged(newValues);
+    setState(() {
+      _values = [..._values]..removeAt(index);
+    });
+    widget.onChanged([..._values]);
   }
 
   @override
@@ -367,22 +404,21 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    if (widget.multiple && widget.values.isNotEmpty) {
+    if (widget.multiple && _values.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.values.length,
+            itemCount: _values.length,
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              return _buildItemCard(widget.values[index], index, isDark);
+              return _buildItemCard(_values[index], index, isDark);
             },
           ),
           const SizedBox(height: 12),
-          if (widget.maxItems == null ||
-              widget.values.length < widget.maxItems!)
+          if (widget.maxItems == null || _values.length < widget.maxItems!)
             _buildAddMoreButton(isDark),
         ],
       );
@@ -421,11 +457,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
             child: Row(
               children: [
                 Expanded(
-                  child: widget.values.isEmpty
+                  child: _values.isEmpty
                       ? _buildPlaceholder()
-                      : _buildSingleValuePreview(widget.values.first),
+                      : _buildSingleValuePreview(_values.first),
                 ),
-                if (widget.values.isNotEmpty && widget.enabled)
+                if (_values.isNotEmpty && widget.enabled)
                   IconButton(
                     onPressed: () => _removeItem(0),
                     icon: const Icon(Icons.close_rounded, size: 20),
@@ -486,10 +522,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    LinearProgressIndicator(
-                      value: val.progress,
-                      minHeight: 3,
-                    ),
+                    LinearProgressIndicator(value: val.progress, minHeight: 3),
                     const SizedBox(height: 2),
                     Text(
                       '${(val.progress * 100).toStringAsFixed(0)}%',
@@ -591,14 +624,18 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
           size: 24,
         ),
         const SizedBox(width: 12),
-        Text(
-          widget.hint ??
-              (widget.multiple
-                  ? 'Tap to upload multiple items'
-                  : 'Tap to pick image, file or URL'),
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor),
+        Expanded(
+          child: Text(
+            widget.hint ??
+                (widget.multiple
+                    ? 'Tap to upload multiple items'
+                    : 'Tap to pick image, file or URL'),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).hintColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
