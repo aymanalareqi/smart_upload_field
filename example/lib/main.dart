@@ -87,7 +87,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 label: 'Image or File Only',
                 hint: 'Pick an image or file',
                 multiple: false,
-                allowedTypes: const [MediaFieldType.image, MediaFieldType.video, MediaFieldType.file],
+                allowedTypes: const [
+                  MediaFieldType.image,
+                  MediaFieldType.video,
+                  MediaFieldType.file,
+                ],
                 onChanged: (values) {
                   setState(() {
                     _mediaValues = values;
