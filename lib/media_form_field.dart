@@ -58,6 +58,68 @@ class MediaValue {
       'MediaValue(type: $type, value: $value, name: $name, remoteId: $remoteId, isUploading: $isUploading)';
 }
 
+/// Translations for all text in [MediaFormField].
+class MediaFormFieldTranslations {
+  final String uploadContent;
+  final String selectContentType;
+  final String image;
+  final String file;
+  final String youtube;
+  final String url;
+  final String pickImageSource;
+  final String camera;
+  final String gallery;
+  final String enterYoutubeUrl;
+  final String enterUrl;
+  final String pleaseEnterUrl;
+  final String pleaseEnterValidUrl;
+  final String pleaseEnterValidYoutubeUrl;
+  final String cancel;
+  final String add;
+  final String addMore;
+  final String uploaded;
+  final String errorPrefix;
+  final String tapToUploadMultiple;
+  final String tapToPick;
+  final String Function(int)? selectAtLeastItems;
+  final String Function(int)? selectAtMostItems;
+  final String Function(int)? maximumItemsAllowed;
+
+  const MediaFormFieldTranslations({
+    this.uploadContent = 'Upload Content',
+    this.selectContentType = 'Select the type of content you want to upload',
+    this.image = 'Image',
+    this.file = 'File',
+    this.youtube = 'YouTube',
+    this.url = 'URL',
+    this.pickImageSource = 'Pick Image Source',
+    this.camera = 'Camera',
+    this.gallery = 'Gallery',
+    this.enterYoutubeUrl = 'Enter YouTube URL',
+    this.enterUrl = 'Enter URL',
+    this.pleaseEnterUrl = 'Please enter a URL',
+    this.pleaseEnterValidUrl = 'Please enter a valid URL',
+    this.pleaseEnterValidYoutubeUrl = 'Please enter a valid YouTube URL',
+    this.cancel = 'Cancel',
+    this.add = 'Add',
+    this.addMore = 'Add More',
+    this.uploaded = 'Uploaded',
+    this.errorPrefix = 'Error',
+    this.tapToUploadMultiple = 'Tap to upload multiple items',
+    this.tapToPick = 'Tap to pick image, file or URL',
+    this.selectAtLeastItems,
+    this.selectAtMostItems,
+    this.maximumItemsAllowed,
+  });
+
+  String getSelectAtLeastItems(int count) =>
+      selectAtLeastItems?.call(count) ?? 'Select at least $count items';
+  String getSelectAtMostItems(int count) =>
+      selectAtMostItems?.call(count) ?? 'Select at most $count items';
+  String getMaximumItemsAllowed(int count) =>
+      maximumItemsAllowed?.call(count) ?? 'Maximum of $count items allowed';
+}
+
 /// A premium, all-in-one form field for picking images, files, or URLs.
 class MediaFormField extends FormField<List<MediaValue>> {
   final String? label;
@@ -73,6 +135,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
   final void Function(MediaValue)? onUploadSuccess;
   final void Function(String)? onUploadError;
   final void Function(bool isUploading)? onUploadingStateChanged;
+  final MediaFormFieldTranslations translations;
 
   MediaFormField({
     super.key,
@@ -89,6 +152,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
     this.onUploadSuccess,
     this.onUploadError,
     this.onUploadingStateChanged,
+    this.translations = const MediaFormFieldTranslations(),
     List<MediaValue>? initialValue,
     super.onSaved,
     FormFieldValidator<List<MediaValue>>? validator,
@@ -103,12 +167,12 @@ class MediaFormField extends FormField<List<MediaValue>> {
            if (multiple &&
                minItems != null &&
                (value?.length ?? 0) < minItems) {
-             return 'Select at least $minItems items';
+             return translations.getSelectAtLeastItems(minItems);
            }
            if (multiple &&
                maxItems != null &&
                (value?.length ?? 0) > maxItems) {
-             return 'Select at most $maxItems items';
+             return translations.getSelectAtMostItems(maxItems);
            }
            return null;
          },
@@ -148,6 +212,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
                  onUploadSuccess: onUploadSuccess,
                  onUploadError: onUploadError,
                  onUploadingStateChanged: onUploadingStateChanged,
+                 translations: translations,
                  onChanged: (val) {
                    state.didChange(val);
                    onChanged?.call(val);
@@ -187,6 +252,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final void Function(MediaValue)? onUploadSuccess;
   final void Function(String)? onUploadError;
   final void Function(bool isUploading)? onUploadingStateChanged;
+  final MediaFormFieldTranslations translations;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -204,6 +270,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
     this.onUploadSuccess,
     this.onUploadError,
     this.onUploadingStateChanged,
+    required this.translations,
   });
 
   @override
@@ -356,7 +423,11 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     if (!widget.enabled) return;
     if (widget.maxItems != null && _values.length >= widget.maxItems!) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maximum of ${widget.maxItems} items allowed')),
+        SnackBar(
+          content: Text(
+            widget.translations.getMaximumItemsAllowed(widget.maxItems!),
+          ),
+        ),
       );
       return;
     }
@@ -370,6 +441,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       builder: (context) => _PickerSheet(
         primaryColor: widget.primaryColor,
         multiple: widget.multiple,
+        translations: widget.translations,
       ),
     );
 
@@ -549,15 +621,15 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Error: ${val.error}',
+                  '${widget.translations.errorPrefix}: ${val.error}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.error,
                   ),
                 ),
               ),
             if (val.remoteId != null)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
                 child: Row(
                   children: [
                     Icon(
@@ -567,8 +639,8 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Uploaded',
-                      style: TextStyle(
+                      widget.translations.uploaded,
+                      style: const TextStyle(
                         fontSize: 11,
                         color: Colors.green,
                         fontWeight: FontWeight.w600,
@@ -626,7 +698,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
             Icon(Icons.add_rounded, color: widget.primaryColor, size: 20),
             const SizedBox(width: 8),
             Text(
-              'Add More',
+              widget.translations.addMore,
               style: TextStyle(
                 color: widget.primaryColor,
                 fontWeight: FontWeight.bold,
@@ -651,8 +723,8 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
           child: Text(
             widget.hint ??
                 (widget.multiple
-                    ? 'Tap to upload multiple items'
-                    : 'Tap to pick image, file or URL'),
+                    ? widget.translations.tapToUploadMultiple
+                    : widget.translations.tapToPick),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).hintColor,
             ),
@@ -710,7 +782,7 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                   ),
                 ),
               if (val.remoteId != null)
-                const Row(
+                Row(
                   children: [
                     Icon(
                       Icons.check_circle_rounded,
@@ -719,8 +791,8 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Uploaded',
-                      style: TextStyle(
+                      widget.translations.uploaded,
+                      style: const TextStyle(
                         fontSize: 11,
                         color: Colors.green,
                         fontWeight: FontWeight.w600,
@@ -793,13 +865,13 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
   String _getTypeLabel(MediaFieldType type) {
     switch (type) {
       case MediaFieldType.image:
-        return 'IMAGE';
+        return widget.translations.image.toUpperCase();
       case MediaFieldType.file:
-        return 'FILE';
+        return widget.translations.file.toUpperCase();
       case MediaFieldType.youtubeUrl:
-        return 'YOUTUBE';
+        return widget.translations.youtube.toUpperCase();
       case MediaFieldType.url:
-        return 'URL';
+        return widget.translations.url.toUpperCase();
     }
   }
 }
@@ -807,8 +879,13 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
 class _PickerSheet extends StatelessWidget {
   final Color primaryColor;
   final bool multiple;
+  final MediaFormFieldTranslations translations;
 
-  const _PickerSheet({required this.primaryColor, required this.multiple});
+  const _PickerSheet({
+    required this.primaryColor,
+    required this.multiple,
+    required this.translations,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -840,14 +917,14 @@ class _PickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'Upload Content',
+            translations.uploadContent,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Select the type of content you want to upload',
+            translations.selectContentType,
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
           ),
           const SizedBox(height: 32),
@@ -867,25 +944,25 @@ class _PickerSheet extends StatelessWidget {
       children: [
         _PickerOption(
           icon: Icons.image_rounded,
-          label: 'Image',
+          label: translations.image,
           color: Colors.blue,
           onTap: () => _pickImage(context),
         ),
         _PickerOption(
           icon: Icons.insert_drive_file_rounded,
-          label: 'File',
+          label: translations.file,
           color: Colors.orange,
           onTap: () => _pickFile(context),
         ),
         _PickerOption(
           icon: FontAwesomeIcons.youtube,
-          label: 'YouTube',
+          label: translations.youtube,
           color: Colors.red,
           onTap: () => _pickUrl(context, isYoutube: true),
         ),
         _PickerOption(
           icon: Icons.link_rounded,
-          label: 'URL',
+          label: translations.url,
           color: Colors.teal,
           onTap: () => _pickUrl(context, isYoutube: false),
         ),
@@ -898,18 +975,18 @@ class _PickerSheet extends StatelessWidget {
     final source = await showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Pick Image Source'),
+        title: Text(translations.pickImageSource),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton.icon(
             onPressed: () => Navigator.pop(context, ImageSource.camera),
             icon: const Icon(Icons.camera_alt_rounded),
-            label: const Text('Camera'),
+            label: Text(translations.camera),
           ),
           TextButton.icon(
             onPressed: () => Navigator.pop(context, ImageSource.gallery),
             icon: const Icon(Icons.photo_library_rounded),
-            label: const Text('Gallery'),
+            label: Text(translations.gallery),
           ),
         ],
       ),
@@ -979,7 +1056,9 @@ class _PickerSheet extends StatelessWidget {
     final url = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isYoutube ? 'Enter YouTube URL' : 'Enter URL'),
+        title: Text(
+          isYoutube ? translations.enterYoutubeUrl : translations.enterUrl,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Form(
           key: formKey,
@@ -998,14 +1077,15 @@ class _PickerSheet extends StatelessWidget {
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Please enter a URL';
+              if (value == null || value.isEmpty)
+                return translations.pleaseEnterUrl;
               if (!Uri.parse(value).isAbsolute) {
-                return 'Please enter a valid URL';
+                return translations.pleaseEnterValidUrl;
               }
               if (isYoutube &&
                   !value.contains('youtube.com') &&
                   !value.contains('youtu.be')) {
-                return 'Please enter a valid YouTube URL';
+                return translations.pleaseEnterValidYoutubeUrl;
               }
               return null;
             },
@@ -1014,7 +1094,7 @@ class _PickerSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(translations.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1022,7 +1102,7 @@ class _PickerSheet extends StatelessWidget {
                 Navigator.pop(context, controller.text);
               }
             },
-            child: const Text('Add'),
+            child: Text(translations.add),
           ),
         ],
       ),
