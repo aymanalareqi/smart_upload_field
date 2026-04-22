@@ -6,7 +6,7 @@ This package provides a unified UI for various media types, making it easy to in
 
 ## Features
 
-- **Unified Interface**: Pick images, files, or enter URLs (YouTube or generic) from a single beautiful component.
+- **Unified Interface**: Pick images, videos, files, or enter URLs (YouTube or generic) from a single beautiful component.
 - **Auto-Upload & Progress Tracking**: Built-in support for uploading files to a remote server (like Laravel) immediately upon selection, complete with real-time progress bars and error handling using `Dio`.
 - **Multiple Selection**: Support for selecting multiple items with `minItems` and `maxItems` constraints.
 - **Grid or List Views**: Display selected media as a sleek horizontal list or a responsive grid view.

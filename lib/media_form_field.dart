@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:dio/dio.dart' as dio;
 
 /// Defines the type of content picked by the [MediaFormField].
-enum MediaFieldType { image, file, youtubeUrl, url }
+enum MediaFieldType { image, file, youtubeUrl, url, video }
 
 /// Defines the layout style for displaying picked media.
 enum MediaFieldViewType { list, grid }
@@ -67,9 +67,11 @@ class MediaFormFieldTranslations {
   final String selectContentType;
   final String image;
   final String file;
+  final String video;
   final String youtube;
   final String url;
   final String pickImageSource;
+  final String pickVideoSource;
   final String camera;
   final String gallery;
   final String enterYoutubeUrl;
@@ -93,9 +95,11 @@ class MediaFormFieldTranslations {
     this.selectContentType = 'Select the type of content you want to upload',
     this.image = 'Image',
     this.file = 'File',
+    this.video = 'Video',
     this.youtube = 'YouTube',
     this.url = 'URL',
     this.pickImageSource = 'Pick Image Source',
+    this.pickVideoSource = 'Pick Video Source',
     this.camera = 'Camera',
     this.gallery = 'Gallery',
     this.enterYoutubeUrl = 'Enter YouTube URL',
@@ -960,6 +964,10 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
         icon = Icons.image_rounded;
         iconColor = Colors.blue;
         break;
+      case MediaFieldType.video:
+        icon = Icons.videocam_rounded;
+        iconColor = Colors.purple;
+        break;
       case MediaFieldType.file:
         icon = Icons.insert_drive_file_rounded;
         iconColor = Colors.orange;
@@ -1010,6 +1018,8 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     switch (type) {
       case MediaFieldType.image:
         return widget.translations.image.toUpperCase();
+      case MediaFieldType.video:
+        return widget.translations.video.toUpperCase();
       case MediaFieldType.file:
         return widget.translations.file.toUpperCase();
       case MediaFieldType.youtubeUrl:
@@ -1095,6 +1105,13 @@ class _PickerSheet extends StatelessWidget {
             color: Colors.blue,
             onTap: () => _pickImage(context),
           ),
+        if (allowedTypes.contains(MediaFieldType.video))
+          _PickerOption(
+            icon: Icons.videocam_rounded,
+            label: translations.video,
+            color: Colors.purple,
+            onTap: () => _pickVideo(context),
+          ),
         if (allowedTypes.contains(MediaFieldType.file))
           _PickerOption(
             icon: Icons.insert_drive_file_rounded,
@@ -1174,6 +1191,44 @@ class _PickerSheet extends StatelessWidget {
             ),
           ]);
         }
+      }
+    }
+  }
+
+  void _pickVideo(BuildContext context) async {
+    final picker = ImagePicker();
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(translations.pickVideoSource),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context, ImageSource.camera),
+            icon: const Icon(Icons.videocam_rounded),
+            label: Text(translations.camera),
+          ),
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context, ImageSource.gallery),
+            icon: const Icon(Icons.video_library_rounded),
+            label: Text(translations.gallery),
+          ),
+        ],
+      ),
+    );
+
+    if (source != null) {
+      final video = await picker.pickVideo(source: source);
+      if (!context.mounted) return;
+      if (video != null) {
+        Navigator.pop(context, [
+          MediaValue(
+            type: MediaFieldType.video,
+            value: video.path,
+            name: p.basename(video.path),
+            file: File(video.path),
+          ),
+        ]);
       }
     }
   }
