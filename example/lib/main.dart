@@ -105,6 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 hint: 'ارفاق عدة ملفات',
                 multiple: true,
                 maxItems: 5,
+                viewType: MediaFieldViewType.grid,
                 translations: const MediaFormFieldTranslations(
                   uploadContent: 'رفع المحتوى',
                   selectContentType: 'اختر نوع المحتوى الذي تريد رفعه',
@@ -138,6 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 hint: 'Files will be uploaded immediately to Laravel backend',
                 multiple: true,
                 autoUpload: true,
+                viewType: MediaFieldViewType.grid,
                 // Replace with your actual Laravel API endpoint
                 uploadUrl: 'https://app.rawdaljinan.com/api/upload-file',
                 onUploadSuccess: (value) {

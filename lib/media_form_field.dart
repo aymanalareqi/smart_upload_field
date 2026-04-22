@@ -9,6 +9,9 @@ import 'package:dio/dio.dart' as dio;
 /// Defines the type of content picked by the [MediaFormField].
 enum MediaFieldType { image, file, youtubeUrl, url }
 
+/// Defines the layout style for displaying picked media.
+enum MediaFieldViewType { list, grid }
+
 /// Represents the value of a [MediaFormField].
 class MediaValue {
   final MediaFieldType type;
@@ -136,6 +139,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
   final void Function(String)? onUploadError;
   final void Function(bool isUploading)? onUploadingStateChanged;
   final MediaFormFieldTranslations translations;
+  final MediaFieldViewType viewType;
 
   MediaFormField({
     super.key,
@@ -153,6 +157,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
     this.onUploadError,
     this.onUploadingStateChanged,
     this.translations = const MediaFormFieldTranslations(),
+    this.viewType = MediaFieldViewType.list,
     List<MediaValue>? initialValue,
     super.onSaved,
     FormFieldValidator<List<MediaValue>>? validator,
@@ -213,6 +218,7 @@ class MediaFormField extends FormField<List<MediaValue>> {
                  onUploadError: onUploadError,
                  onUploadingStateChanged: onUploadingStateChanged,
                  translations: translations,
+                 viewType: viewType,
                  onChanged: (val) {
                    state.didChange(val);
                    onChanged?.call(val);
@@ -253,6 +259,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
   final void Function(String)? onUploadError;
   final void Function(bool isUploading)? onUploadingStateChanged;
   final MediaFormFieldTranslations translations;
+  final MediaFieldViewType viewType;
 
   const _MediaFormFieldInternal({
     required this.values,
@@ -271,6 +278,7 @@ class _MediaFormFieldInternal extends StatefulWidget {
     this.onUploadError,
     this.onUploadingStateChanged,
     required this.translations,
+    required this.viewType,
   });
 
   @override
@@ -492,15 +500,31 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _values.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              return _buildItemCard(_values[index], index, isDark);
-            },
-          ),
+          if (widget.viewType == MediaFieldViewType.grid)
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _values.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1,
+              ),
+              itemBuilder: (context, index) {
+                return _buildGridItemCard(_values[index], index, isDark);
+              },
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _values.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                return _buildItemCard(_values[index], index, isDark);
+              },
+            ),
           const SizedBox(height: 12),
           if (widget.maxItems == null || _values.length < widget.maxItems!)
             _buildAddMoreButton(isDark),
@@ -807,7 +831,114 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
     );
   }
 
-  Widget _buildLeadingIcon(MediaValue val) {
+  Widget _buildGridItemCard(MediaValue val, int index, bool isDark) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Center(child: _buildLeadingIcon(val, isGrid: true)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  val.name ?? val.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (val.isUploading)
+                  Column(
+                    children: [
+                      LinearProgressIndicator(value: val.progress, minHeight: 3),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${(val.progress * 100).toStringAsFixed(0)}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: widget.primaryColor,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (val.error != null)
+                  Text(
+                    '${widget.translations.errorPrefix}: ${val.error}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.error,
+                      fontSize: 10,
+                    ),
+                  )
+                else if (val.remoteId != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.translations.uploaded,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    _getTypeLabel(val.type),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: widget.primaryColor,
+                      fontSize: 10,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: widget.enabled
+                ? IconButton(
+                    onPressed: () => _removeItem(index),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    visualDensity: VisualDensity.compact,
+                    color: theme.hintColor,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeadingIcon(MediaValue val, {bool isGrid = false}) {
     dynamic icon;
     Color iconColor;
 
@@ -835,29 +966,29 @@ class _MediaFormFieldInternalState extends State<_MediaFormFieldInternal>
         borderRadius: BorderRadius.circular(8),
         child: Image.file(
           val.file!,
-          width: 40,
-          height: 40,
+          width: isGrid ? double.infinity : 40,
+          height: isGrid ? double.infinity : 40,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) =>
-              _buildIconContainer(icon, iconColor),
+              _buildIconContainer(icon, iconColor, isGrid: isGrid),
         ),
       );
     }
-    return _buildIconContainer(icon, iconColor);
+    return _buildIconContainer(icon, iconColor, isGrid: isGrid);
   }
 
-  Widget _buildIconContainer(dynamic icon, Color color) {
+  Widget _buildIconContainer(dynamic icon, Color color, {bool isGrid = false}) {
     return Container(
-      width: 40,
-      height: 40,
+      width: isGrid ? double.infinity : 40,
+      height: isGrid ? double.infinity : 40,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(
         child: icon is IconData
-            ? Icon(icon, color: color, size: 20)
-            : FaIcon(icon, color: color, size: 20),
+            ? Icon(icon, color: color, size: isGrid ? 32 : 20)
+            : FaIcon(icon, color: color, size: isGrid ? 32 : 20),
       ),
     );
   }
